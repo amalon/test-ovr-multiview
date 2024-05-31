@@ -341,7 +341,7 @@ static void updateWindowTitle()
     snprintf(buf, sizeof(buf),
              "Multiview test | Multiview: %s (%s) | Display lists: %s (D to toggle)",
              multiview ? "ON" : "OFF",
-             supports_multiview ? "(supported, M to toggle)" : "(unsupported)",
+             supports_multiview ? "supported, M to toggle" : "unsupported",
              display_lists ? "ON" : "OFF");
 
     SDL_SetWindowTitle(window, buf);
