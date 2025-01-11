@@ -16,6 +16,7 @@
 
 static SDL_Window *window;
 static unsigned int tex;
+static unsigned int depth;
 static unsigned int fbo[3];
 static unsigned int num_fbos;
 static unsigned int scene_prog[2], buf_prog;
@@ -33,6 +34,13 @@ static void setup_textures()
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+
+    glGenTextures(1, &depth);
+    glBindTexture(GL_TEXTURE_2D, depth);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, TEX_WIDTH, TEX_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 /* Set up framebuffer object(s), for each layer of texture, or for all layers */
@@ -51,6 +59,7 @@ static int setup_fbo()
         } else {
             glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, tex, 0, i);
         }
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
 
         GLenum ret = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (ret != GL_FRAMEBUFFER_COMPLETE) {
@@ -301,7 +310,7 @@ static void render()
     glUseProgram(scene_prog[multiview ? 1 : 0]);
     for (i = multiview ? 2 : 0; i < (multiview ? 3 : 2); ++i) {
         glBindFramebuffer(GL_FRAMEBUFFER, fbo[i]);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         render_scene();
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
