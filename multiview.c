@@ -18,6 +18,7 @@ static SDL_Window *window;
 static unsigned int tex;
 static unsigned int fbo[3];
 static unsigned int num_fbos;
+static unsigned int clear_prog[2];
 static unsigned int scene_prog[2], buf_prog;
 static unsigned int scene_list = 0;
 static bool supports_multiview = false;
@@ -113,6 +114,38 @@ static unsigned int build_shader(const char *name,
     return prog;
 }
 
+/* Set up the scene clear (multiview) shader */
+static int setup_clear_shader(unsigned int multiview_version)
+{
+    const char *vert_src, *frag_src;
+    if (multiview_version) {
+        vert_src = "#version 330 core\n"
+                   "#extension GL_OVR_multiview: enable\n"
+                   "layout (num_views = 2) in;\n"
+                   "layout (location = 0) in vec3 inPos;\n"
+                   "void main()\n"
+                   "{\n"
+                   "  gl_Position = vec4(inPos, 1.0);\n"
+                   "}\n";
+    } else {
+        vert_src = "#version 330 core\n"
+                   "layout (location = 0) in vec3 inPos;\n"
+                   "void main()\n"
+                   "{\n"
+                   "  gl_Position = vec4(inPos, 1.0);\n"
+                   "}\n";
+    }
+    frag_src = "#version 330 core\n"
+               "layout(location = 0) out vec4 fragColor;\n"
+               "void main()\n"
+               "{\n"
+               "  fragColor = vec4(0.0, 0.0, 0.0, 0.0);\n"
+               "}\n";
+
+    clear_prog[multiview_version] = build_shader("Clear", vert_src, frag_src);
+    return clear_prog[multiview_version] == 0;
+}
+
 /* Set up the scene rendering (multiview) shader */
 static int setup_scene_shader(unsigned int multiview_version)
 {
@@ -189,7 +222,13 @@ static int setup()
     if (setup_fbo())
         return 1;
 
+    if (supports_multiview && setup_clear_shader(1))
+        return 1;
+
     if (supports_multiview && setup_scene_shader(1))
+        return 1;
+
+    if (setup_clear_shader(0))
         return 1;
 
     if (setup_scene_shader(0))
@@ -206,10 +245,28 @@ static void cleanup()
     glDeleteLists(scene_list, 1);
     glDeleteFramebuffers(num_fbos, fbo);
     glDeleteTextures(1, &tex);
+    glDeleteProgram(clear_prog[0]);
     glDeleteProgram(scene_prog[0]);
-    if (supports_multiview)
+    if (supports_multiview) {
+        glDeleteProgram(clear_prog[1]);
         glDeleteProgram(scene_prog[1]);
+    }
     glDeleteProgram(buf_prog);
+}
+
+/* Render a full screen quad */
+static void render_quad()
+{
+    float verts[3][3] = {
+        /* x      y     z */
+        {-1.0f, -1.0f, 0.0f},
+        { 3.0f, -1.0f, 0.0f},
+        {-1.0f,  3.0f, 0.0f},
+    };
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, &verts[0][0]);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDisableVertexAttribArray(0);
 }
 
 /* Render a triangle */
@@ -234,6 +291,14 @@ static void render_triangle()
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
+}
+
+/* Clear the render buffers */
+static void clear()
+{
+    glViewport(0, 0, TEX_WIDTH, TEX_HEIGHT);
+
+    render_quad();
 }
 
 /* Render a single view of the scene */
@@ -304,10 +369,11 @@ static void render()
     unsigned int i;
 
     /* Render the scene to FBO for each view (or just once with multiview) */
-    glUseProgram(scene_prog[multiview ? 1 : 0]);
     for (i = multiview ? 2 : 0; i < (multiview ? 3 : 2); ++i) {
         glBindFramebuffer(GL_FRAMEBUFFER, fbo[i]);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glUseProgram(clear_prog[multiview ? 1 : 0]);
+        clear();
+        glUseProgram(scene_prog[multiview ? 1 : 0]);
         render_scene();
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
