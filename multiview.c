@@ -120,6 +120,7 @@ static int setup_scene_shader(unsigned int multiview_version)
     if (multiview_version) {
         vert_src = "#version 330 core\n"
                    "#extension GL_OVR_multiview: enable\n"
+                   "#extension GL_ARB_shader_viewport_layer_array: enable\n"
                    "layout (num_views = 2) in;\n"
                    "layout (location = 0) in vec3 inPos;\n"
                    "layout (location = 1) in vec3 inCol;\n"
@@ -127,16 +128,19 @@ static int setup_scene_shader(unsigned int multiview_version)
                    "void main()\n"
                    "{\n"
                    "  gl_Position = vec4(inPos, 1.0);\n"
+                   "  gl_ViewportIndex = int(gl_ViewID_OVR);\n"
                    "  color = inCol;\n"
                    "}\n";
     } else {
         vert_src = "#version 330 core\n"
+                   "#extension GL_ARB_shader_viewport_layer_array: enable\n"
                    "layout (location = 0) in vec3 inPos;\n"
                    "layout (location = 1) in vec3 inCol;\n"
                    "out vec3 color;\n"
                    "void main()\n"
                    "{\n"
                    "  gl_Position = vec4(inPos, 1.0);\n"
+                   "  gl_ViewportIndex = 1;\n"
                    "  color = inCol;\n"
                    "}\n";
     }
@@ -236,6 +240,8 @@ static void render_triangle()
 static void render_scene()
 {
     glViewport(0, 0, TEX_WIDTH, TEX_HEIGHT);
+    glViewportIndexedf(0, 0, 0, TEX_WIDTH, TEX_HEIGHT);
+    glViewportIndexedf(1, 0, 0, TEX_WIDTH, TEX_HEIGHT);
 
     if (display_lists) {
         if (!scene_list) {
