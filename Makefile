@@ -6,6 +6,7 @@ CC_OPTS=-Wall -std=c99 -pedantic -O2
 LIBS=-lGL -lSDL2
 
 PROGS+=multiview
+PROGS+=viewport_array
 
 SRCS=$(PROGS:=.c)
 TRACE_FILES=$(PROGS:=.trace)
