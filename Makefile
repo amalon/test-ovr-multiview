@@ -5,18 +5,23 @@ CC=gcc
 CC_OPTS=-Wall -std=c99 -pedantic -O2
 LIBS=-lGL -lSDL2
 
-PROG=multiview
-SRC=$(PROG).c
+PROGS+=multiview
 
-$(PROG): $(SRC)
-	$(CC) $(CC_OPTS) $(LIBS) -o $@ $^ 
+SRCS=$(PROGS:=.c)
+TRACE_FILES=$(PROGS:=.trace)
 
-.PHONY: trace
-trace: $(PROG)
-	rm -f $(PROG).trace
-	$(APITRACE) trace ./$(PROG)
-	$(QAPITRACE) $(PROG).trace
+all: $(PROGS)
+
+$(PROGS): %: %.c
+	$(CC) $(CC_OPTS) $(LIBS) -o $@ $^
+
+TRACE_TARGETS=$(PROGS:%=trace_%)
+.PHONY: $(TRACE_TARGETS)
+$(TRACE_TARGETS): trace_%: %
+	rm -f $<.trace
+	$(APITRACE) trace ./$<
+	$(QAPITRACE) $<.trace
 
 .PHONY: clean
 clean:
-	rm -f $(PROG) $(PROG).trace
+	rm -f $(PROGS) $(TRACE_FILES)
